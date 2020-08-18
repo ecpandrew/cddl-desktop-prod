@@ -1,10 +1,10 @@
 package br.ufma.lsdi.cddl.network;
 
-import org.eclipse.moquette.server.Server;
 
 import java.io.IOException;
 import java.util.Properties;
 
+import io.moquette.broker.Server;
 import lombok.val;
 
 /**
