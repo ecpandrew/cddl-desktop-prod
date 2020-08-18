@@ -15,6 +15,7 @@
  */
 package io.moquette.broker;
 
+import br.ufma.lsdi.security.SecurityServiceImpl;
 import io.moquette.BrokerConstants;
 import io.moquette.broker.config.*;
 import io.moquette.interception.InterceptHandler;
@@ -70,7 +71,7 @@ public class Server {
         LOG.info("Starting Moquette integration. Configuration file path={}", defaultConfigurationFile.getAbsolutePath());
         IResourceLoader filesystemLoader = new FileResourceLoader(defaultConfigurationFile);
         final IConfig config = new ResourceLoaderConfig(filesystemLoader);
-        startServer(config);
+        startServer(null, config);
     }
 
     private static File defaultConfigFile() {
@@ -88,7 +89,7 @@ public class Server {
         LOG.info("Starting Moquette integration. Configuration file path: {}", configFile.getAbsolutePath());
         IResourceLoader filesystemLoader = new FileResourceLoader(configFile);
         final IConfig config = new ResourceLoaderConfig(filesystemLoader);
-        startServer(config);
+        startServer(null, config);
     }
 
     /**
@@ -106,8 +107,17 @@ public class Server {
     public void startServer(Properties configProps) throws IOException {
         LOG.debug("Starting Moquette integration using properties object");
         final IConfig config = new MemoryConfig(configProps);
-        startServer(config);
+        startServer(null, config);
     }
+
+
+    public void startSecureServer(String pwd, Properties configProps) throws IOException, Exception {
+        LOG.debug("Starting Moquette integration using properties object. Secure Mode: ON");
+        final IConfig config = new MemoryConfig(configProps);
+        startServer(pwd, config);
+    }
+
+
 
     /**
      * Starts Moquette bringing the configuration files from the given Config implementation.
@@ -115,9 +125,9 @@ public class Server {
      * @param config the configuration to use to start the broker.
      * @throws IOException in case of any IO Error.
      */
-    public void startServer(IConfig config) throws IOException {
+    public void startServer(String pwd, IConfig config) throws IOException {
         LOG.debug("Starting Moquette integration using IConfig instance");
-        startServer(config, null);
+        startServer(pwd, config, null);
     }
 
     /**
@@ -128,13 +138,13 @@ public class Server {
      * @param handlers the handlers to install in the broker.
      * @throws IOException in case of any IO Error.
      */
-    public void startServer(IConfig config, List<? extends InterceptHandler> handlers) throws IOException {
+    public void startServer(String pwd, IConfig config, List<? extends InterceptHandler> handlers) throws IOException {
         LOG.debug("Starting moquette integration using IConfig instance and intercept handlers");
-        startServer(config, handlers, null, null, null);
+        startServer(pwd, config, handlers, null, null, null);
     }
 
-    public void startServer(IConfig config, List<? extends InterceptHandler> handlers, ISslContextCreator sslCtxCreator,
-                            IAuthenticator authenticator, IAuthorizatorPolicy authorizatorPolicy) {
+    public void startServer(String pwd, IConfig config, List<? extends InterceptHandler> handlers, ISslContextCreator sslCtxCreator,
+                            IAuthenticator authenticator, IAuthorizatorPolicy authorizatorPolicy) throws IOException {
         final long start = System.currentTimeMillis();
         if (handlers == null) {
             handlers = Collections.emptyList();
@@ -151,13 +161,20 @@ public class Server {
         LOG.debug("Configuring Using persistent store file, path: {}", persistencePath);
         initInterceptors(config, handlers);
         LOG.debug("Initialized MQTT protocol processor");
-        if (sslCtxCreator == null) {
-            LOG.info("Using default SSL context creator");
-//            sslCtxCreator = new DefaultMoquetteSslContextCreator(config);
-        }
-        authenticator = initializeAuthenticator(authenticator, config);
-        authorizatorPolicy = initializeAuthorizatorPolicy(authorizatorPolicy, config);
 
+        if (pwd == null) {
+            LOG.info("SSL is disabled");
+            authorizatorPolicy = initializeAuthorizatorPolicy(authorizatorPolicy, config);
+            authenticator = initializeAuthenticator(authenticator, config);
+
+//            sslCtxCreator = new DefaultMoquetteSslContextCreator(config);
+        }else{
+            LOG.info("Using security service SSL context creator");
+            SecurityServiceImpl securityService = new SecurityServiceImpl(pwd);
+            authorizatorPolicy = new CDDLAuthorizatorPolicy(securityService);
+            authenticator = initializeAuthenticator(authenticator, config);
+            sslCtxCreator = new SSLContextCreatorHolder(securityService);
+        }
         final ISubscriptionsRepository subscriptionsRepository;
         final IQueueRepository queueRepository;
         final IRetainedRepository retainedRepository;

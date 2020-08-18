@@ -19,6 +19,8 @@ public final class MicroBroker {
     public static final String TCP = "tcp";
     public static final String SSL = "ssl";
     public static final String DEFAULT_PORT = "1883";
+    public static final String SECURE_PORT = "8883";
+
 
     private final String host = DEFAULT_MICRO_BROKER_HOST;
     private final String port = DEFAULT_WEBSOCKET_PORT;
@@ -55,6 +57,36 @@ public final class MicroBroker {
     public String  start() {
         return start(DEFAULT_MICRO_BROKER_HOST, DEFAULT_PORT, DEFAULT_WEBSOCKET_PORT, DEFAULT_PASSWORD_FILE);
     }
+
+
+    public String secureStart(String pwd, String host, String port, boolean requireClientCertificate) {
+        val m_properties = new Properties();
+
+        m_properties.put("ssl_port", port);
+        m_properties.put("host", host);
+
+
+        if(requireClientCertificate){
+            m_properties.put("need_client_auth", "true");
+
+
+        }
+
+        server = new Server();
+        try {
+            server.startSecureServer(pwd, m_properties);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return host;
+    }
+
+    public String  secureStart(String pwd, boolean requireClientCertificate) {
+        return secureStart(pwd, DEFAULT_MICRO_BROKER_HOST, SECURE_PORT, requireClientCertificate);
+    }
+
+
 
     public void stop() {
         if (server != null) {

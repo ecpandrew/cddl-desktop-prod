@@ -1,5 +1,6 @@
 package br.ufma.lsdi.cddl.network;
 
+import br.ufma.lsdi.cddl.util.RandomIdGenerator;
 import org.eclipse.paho.client.mqttv3.DisconnectedBufferOptions;
 import org.eclipse.paho.client.mqttv3.IMqttActionListener;
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
@@ -49,7 +50,11 @@ public final class ConnectionImpl implements IMqttActionListener, MqttCallback, 
     private static final String TAG = ConnectionImpl.class.getSimpleName();
 
     private String protocol = TCP;
+    private String secureProtocol = SSL;
+
     private String port = DEFAULT_PORT;
+    private String securePort = DEFAULT_SECURE_PORT;
+
     private String webSocketPort = DEFAULT_WEBSOCKET_PORT;
     private String passwordFile = DEFAULT_PASSWORD_FILE;
 
@@ -72,6 +77,8 @@ public final class ConnectionImpl implements IMqttActionListener, MqttCallback, 
     private int maxInflightMessages = MqttConnectOptions.MAX_INFLIGHT_DEFAULT;
     private String username = "username";
     private String password = "password";
+    private String securityServicePasword;
+
     private MqttConnectOptions options = null;
     private boolean synchronizedModeActive = false;
     private long republicationInterval = 1000;
@@ -80,7 +87,7 @@ public final class ConnectionImpl implements IMqttActionListener, MqttCallback, 
     private int persistBufferSize = DisconnectedBufferOptions.DISCONNECTED_BUFFER_SIZE_DEFAULT;
     private boolean deleteOldestMessagesFromPersistBuffer = DisconnectedBufferOptions.PERSIST_DISCONNECTED_BUFFER_DEFAULT;
     private int mqttVersion = MqttConnectOptions.MQTT_VERSION_3_1;
-    private final String connectionId = UUID.randomUUID().toString();
+    private final String connectionId = RandomIdGenerator.GetBase62(6);
     private final Set<Subscription> subscriptionPendencies = new ConcurrentSkipListSet<Subscription>();
     private final ArrayList<IConnectionListener> connectionListeners = new ArrayList<IConnectionListener>();
     private boolean enableIntermediateBuffer = false;
@@ -92,6 +99,8 @@ public final class ConnectionImpl implements IMqttActionListener, MqttCallback, 
 
     private String clientId;
     private String host;
+    private com.example.security_service.SecurityServiceImpl securityService;
+
 
     public ConnectionImpl() {
         Collections.synchronizedList(deliveryFailedMessages);
@@ -112,6 +121,10 @@ public final class ConnectionImpl implements IMqttActionListener, MqttCallback, 
         Asserts.assertNotNull(host, "Host can not be null.");
         Asserts.assertNotNull(protocol, "Protocol can not be null.");
         Asserts.assertNotNull(password, "Password can not be null.");
+
+        this.securityService = null;
+        this.securityServicePasword = null;
+
 
         if (!isConnected()) {
             val uri =  protocol + "://" + host + ":" + port;
@@ -164,6 +177,75 @@ public final class ConnectionImpl implements IMqttActionListener, MqttCallback, 
     public synchronized void connect() {
         connect(protocol, host, port, automaticReconnection, automaticReconnectionTime, cleanSession, connectionTimeout, keepAliveInterval, publishConnectionChangedStatus, maxInflightMessages, username, password, mqttVersion);
     }
+
+    @Override
+    public void secureConnect(String pwd) {
+        secureConnect(pwd, secureProtocol, host, securePort, automaticReconnection, automaticReconnectionTime, cleanSession, connectionTimeout, keepAliveInterval, publishConnectionChangedStatus, maxInflightMessages, username, password, mqttVersion);
+    }
+    @Override
+    public void secureConnect(String pwd, String protocol, String host, String port, boolean automaticReconnect, long automaticReconnectionTime, boolean cleanSession, int connectionTimeout, int keepAliveInterval, boolean publishConnectionChangedStatus, int maxInflightMessages, String username, String password, int mqttVersion) {
+        Asserts.assertNotNull(clientId, "Connection: Client Id must be set before calling connect().");
+        Asserts.assertNotNull(port, "Port can not be null.");
+        Asserts.assertNotNull(host, "Host can not be null.");
+        Asserts.assertNotNull(protocol, "Protocol can not be null.");
+        Asserts.assertNotNull(password, "Password can not be null.");
+
+        this.securityServicePasword = pwd;
+        this.securityService = new com.example.security_service.SecurityServiceImpl(securityServicePasword);
+
+        if (!isConnected()) {
+            val uri =  protocol + "://" + host + ":" + port;
+            try {
+                lastUri =  uri;
+                this.automaticReconnection = automaticReconnection;
+                this.automaticReconnectionTime = automaticReconnectionTime;
+                options = new MqttConnectOptions();
+                this.cleanSession = cleanSession;
+                options.setCleanSession(cleanSession);
+                this.keepAliveInterval = keepAliveInterval;
+                options.setKeepAliveInterval(keepAliveInterval);
+                this.connectionTimeout = connectionTimeout;
+                options.setConnectionTimeout(connectionTimeout);
+                this.publishConnectionChangedStatus = publishConnectionChangedStatus;
+                options.setMaxInflight(maxInflightMessages);
+                this.maxInflightMessages = maxInflightMessages;
+                options.setPassword(password.toCharArray());
+                this.password = password;
+                options.setMqttVersion(mqttVersion);
+                this.mqttVersion = mqttVersion;
+                if (isPublishConnectionChangedStatus()) {
+                    val connectionChangedStatusMessage = new ConnectionChangedStatusMessage();
+                    connectionChangedStatusMessage.setStatus(ConnectionChangedStatusMessage.CLIENT_DESCONNECTED_BY_FAILURE);
+                    val topic = Topic.connectionChangedStatusTopic(clientId);
+                    options.setWill(topic, connectionChangedStatusMessage.toString().getBytes(), 2, false);
+                }
+
+                options.setSocketFactory(securityService.getSSLContext().getSocketFactory());
+                options.setHttpsHostnameVerificationEnabled(false);
+
+                options.setSocketFactory(securityService.getSSLContext().getSocketFactory());
+                options.setHttpsHostnameVerificationEnabled(false);
+                val disconnectedBufferOptions = new DisconnectedBufferOptions();
+                disconnectedBufferOptions.setBufferEnabled(persistBufferEnable);
+                disconnectedBufferOptions.setPersistBuffer(persistBuffer);
+                disconnectedBufferOptions.setBufferSize(persistBufferSize);
+                mqttClient = new MqttAsyncClient(uri, clientId + connectionId, memoryPersistence);
+                mqttClient.setBufferOpts(disconnectedBufferOptions);
+                mqttClient.setCallback(this);
+                val start = Time.getCurrentTimestamp();
+                val token = mqttClient.connect(options, null, this);
+                token.waitForCompletion();
+                val finish = Time.getCurrentTimestamp();
+                AppUtils.logger('i', TAG, ">>> Tempo de Conexão com Broker MQTT " + (finish - start) + " ms");
+            } catch (MqttException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
 
     @Override
     public synchronized void disconnect() {
@@ -1093,8 +1175,16 @@ public final class ConnectionImpl implements IMqttActionListener, MqttCallback, 
                 // TODO Auto-generated catch block
                 e.printStackTrace();
             }
-            AppUtils.logger('i', TAG, ">>> Tentando reconectar ao Broker MQTT...");
-            connect();
+            if(securityServicePasword == null){
+                AppUtils.logger('i', TAG, ">>> Tentando reconectar ao Broker MQTT...");
+
+                connect();
+
+            }else{
+                AppUtils.logger('i', TAG, ">>> Tentando reconectar ao Broker MQTT de maneira segura...");
+
+                secureConnect(securityServicePasword);
+            }
 
 
         }

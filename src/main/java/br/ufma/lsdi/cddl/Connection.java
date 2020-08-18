@@ -4,6 +4,8 @@ import br.ufma.lsdi.cddl.listeners.IConnectionListener;
 import br.ufma.lsdi.cddl.listeners.IMessageListener;
 import br.ufma.lsdi.cddl.message.Message;
 
+import java.io.IOException;
+
 /**
  * MQQT connection service.
  */
@@ -22,6 +24,8 @@ public interface Connection {
 
     String DEFAULT_HOST = LSD_HOST;
     String DEFAULT_PORT = "1883";
+    String DEFAULT_SECURE_PORT = "8883";
+
     String DEFAULT_WEBSOCKET_PORT = "8080";
     String DEFAULT_PASSWORD_FILE = "";
 
@@ -31,6 +35,16 @@ public interface Connection {
      * Connects to the MQTT service
      */
     void connect();
+
+
+
+    /**
+     * Connects to the MQTT service using the SecurityService
+     */
+    void secureConnect(String pwd, String protocol, String host, String port, boolean automaticReconnect, long automaticReconnectionTime, boolean cleanSession, int connectionTimeout, int keepAliveInterval, boolean publishConnectionChangedStatus, int maxInflightMessages, String username, String password, int mqttVersion) throws IOException;
+    void secureConnect(String pwd) throws IOException;
+
+
 
     /**
      * Reconnects to the MQTT service
