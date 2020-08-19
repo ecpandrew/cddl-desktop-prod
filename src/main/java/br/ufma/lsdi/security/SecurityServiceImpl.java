@@ -241,7 +241,7 @@ public class SecurityServiceImpl {
             keyStore.setKeyEntry(
                     CLIENT_ALIAS,
                     keyPair.getPrivate(),
-                    null,
+                    password,
                     chain
             );
             eraseTxtFileContent(keystoreFileInternal);
