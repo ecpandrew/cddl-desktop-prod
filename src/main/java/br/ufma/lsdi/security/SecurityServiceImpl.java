@@ -257,7 +257,7 @@ public class SecurityServiceImpl {
     public Certificate getCertificate() {
         loadKeystore();
         try {
-            KeyStore.PrivateKeyEntry privateKeyEntry = (KeyStore.PrivateKeyEntry) keyStore.getEntry(CLIENT_ALIAS, null);
+            KeyStore.PrivateKeyEntry privateKeyEntry = (KeyStore.PrivateKeyEntry) keyStore.getEntry(CLIENT_ALIAS, new KeyStore.PasswordProtection(password));
             return privateKeyEntry.getCertificate();
         } catch (KeyStoreException | NoSuchAlgorithmException | UnrecoverableEntryException e) {
             e.printStackTrace();
@@ -355,7 +355,7 @@ public class SecurityServiceImpl {
 
         SSLContext serverContext = SSLContext.getInstance("TLS");
         loadKeystore();
-        KeyStore.PrivateKeyEntry privateKeyEntry = (KeyStore.PrivateKeyEntry) keyStore.getEntry("client_cert", null);
+        KeyStore.PrivateKeyEntry privateKeyEntry = (KeyStore.PrivateKeyEntry) keyStore.getEntry("client_cert", new KeyStore.PasswordProtection(password));
         final Certificate caCert = getCertificate();
         if(privateKeyEntry == null){throw new Exception("Can't find certificate.");}
         if(caCert == null){throw new Exception("Can't find CA certificate.");}
