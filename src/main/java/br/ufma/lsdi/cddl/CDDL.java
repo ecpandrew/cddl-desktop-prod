@@ -80,6 +80,10 @@ public final class CDDL {
         return MicroBroker.getInstance().start(host, port, webSocketPort, passwordFile);
     }
 
+    public static String startSecureMicroBroker(String pwd, boolean requireClientCertificate) {
+        return MicroBroker.getInstance().secureStart(pwd, requireClientCertificate);
+    }
+
     /**
      * Starts the MQTT microbroker
      */
