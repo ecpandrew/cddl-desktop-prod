@@ -1,15 +1,12 @@
-package com.example.security_service;
+package br.ufma.lsdi.security;
 
 
-import android.content.Context;
-import android.os.Environment;
-import android.util.Log;
 
 
+import br.ufma.lsdi.security.helpers.CsrHelper;
 import br.ufma.lsdi.security.helpers.Log;
-import com.example.security_service.helpers.CsrHelper;
-import com.example.security_service.helpers.TxtFileHelper;
 
+import br.ufma.lsdi.security.helpers.TxtFileHelper;
 import org.spongycastle.pkcs.PKCS10CertificationRequest;
 
 import java.io.BufferedInputStream;
@@ -89,11 +86,13 @@ public class SecurityServiceImpl {
 
     private KeyStore keyStore;
     private KeyPair keyPair;
+    private String path;
 
 
 
-    public SecurityServiceImpl(String pwd){
+    public SecurityServiceImpl(String pwd) throws IOException {
         this.password = pwd.toCharArray();
+        this.path = new File(".").getCanonicalPath();;
         try {
             this.keyStore = KeyStore.getInstance(keyStoreType);
         } catch (KeyStoreException e) {
@@ -125,42 +124,37 @@ public class SecurityServiceImpl {
     }
 
 
-    public static synchronized SecurityServiceImpl getInstance(Context context){
-        return  new SecurityServiceImpl(context);
-    }
-
-
-
-
 
     private boolean isKeystoreFilePresent(String fileName) {
-        return TxtFileHelper.fileExists(context, fileName);
+        return TxtFileHelper.fileExists(path, fileName);
     }
 
     private boolean isACLFilePresent(String fileName) {
-        return TxtFileHelper.fileExists(context, fileName);
+        return TxtFileHelper.fileExists(path, fileName);
     }
 
 
     private void eraseTxtFileContent(String fileName){
-        TxtFileHelper.eraseTxtFileContent(context, fileName);
+        TxtFileHelper.eraseTxtFileContent(path, fileName);
     }
 
 
     private void createAndSaveKeystoreInTxtFile() {
-        Log.i("Info","Creating Keystore." );
-        TxtFileHelper.createAndSaveKeystoreInTxtFile(context, keyStoreType, password, keystoreFileInternal);
+        Log.debug("Info","Creating Keystore." );
+        TxtFileHelper.createAndSaveKeystoreInTxtFile(path, keyStoreType, password, keystoreFileInternal);
 
     }
 
     private void createACLFile(){
-        Log.i("Info","Creating Keystore." );
-        TxtFileHelper.createACLFile(context, ACLFile);
+        Log.debug("Info","Creating Keystore." );
+        TxtFileHelper.createACLFile(path, ACLFile);
 
     }
 
     private void loadKeystore(){
-        try (FileInputStream fis = context.openFileInput(keystoreFileInternal)) {
+        File file = new File(path, keystoreFileInternal);
+        try {
+            FileInputStream fis = new FileInputStream(file);
             keyStore.load(fis, password);
         } catch (IOException | CertificateException | NoSuchAlgorithmException e) {
             e.printStackTrace();
@@ -188,7 +182,7 @@ public class SecurityServiceImpl {
         try {
             CSRder = csr.getEncoded();
             saveCSRInTxtFile(CSRder);
-            saveKeyPair(context.getFilesDir().getAbsolutePath());
+            saveKeyPair(path);
 
         } catch (IOException e) {
             e.printStackTrace();
@@ -198,7 +192,7 @@ public class SecurityServiceImpl {
 
 
     private void saveCSRInTxtFile(byte[] csr) {
-        TxtFileHelper.saveCSRInTxtFile(context,csrFileInternal, csr);
+        TxtFileHelper.saveCSRInTxtFile(path,csrFileInternal, csr);
     }
 
     private void saveKeyPair(String path){
@@ -237,8 +231,8 @@ public class SecurityServiceImpl {
     public void setCertificate(String fileName){
         try {
             loadKeystore();
-            loadKeyPairFromTxt(context.getFilesDir().getAbsolutePath());
-            File cert_file = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), fileName);
+            loadKeyPairFromTxt(path);
+            File cert_file = new File(path, fileName);
             InputStream fis = new FileInputStream(cert_file);
             BufferedInputStream bis = new BufferedInputStream(fis);
             CertificateFactory cf = CertificateFactory.getInstance("X.509");
@@ -251,9 +245,9 @@ public class SecurityServiceImpl {
                     chain
             );
             eraseTxtFileContent(keystoreFileInternal);
-            FileOutputStream outputStream = context.openFileOutput(keystoreFileInternal, Context.MODE_PRIVATE);
+            FileOutputStream outputStream = new FileOutputStream(new File(path,keystoreFileInternal));
             keyStore.store(outputStream, password);
-            Log.d("Debug","Cient cert added to keystore succesfully!!!!");
+            Log.debug("Debug","Cient cert added to keystore succesfully!!!!");
             outputStream.close();
         } catch (NoSuchAlgorithmException | CertificateException | KeyStoreException | IOException | InvalidKeySpecException e) {
             e.printStackTrace();
@@ -310,7 +304,7 @@ public class SecurityServiceImpl {
 
     public boolean verifyCertificateAgainstPrivateKey(){
         try {
-            loadKeyPairFromTxt(context.getFilesDir().getAbsolutePath());
+            loadKeyPairFromTxt(path);
             PublicKey publicKey = getCertificate().getPublicKey();
             PrivateKey privateKey = keyPair.getPrivate();
             RSAPublicKey rsaPublicKey = (RSAPublicKey) publicKey;
@@ -328,7 +322,7 @@ public class SecurityServiceImpl {
 
     public void setCaCertificate(String fileName) {
         try {
-            File ca_file = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), fileName);
+            File ca_file = new File(path, fileName);
             InputStream fis = new FileInputStream(ca_file);
             BufferedInputStream bis = new BufferedInputStream(fis);
             CertificateFactory cf;
@@ -337,9 +331,9 @@ public class SecurityServiceImpl {
             loadKeystore();
             keyStore.setCertificateEntry(CA_ALIAS, cert);
             eraseTxtFileContent(keystoreFileInternal);
-            FileOutputStream outputStream = context.openFileOutput(keystoreFileInternal, Context.MODE_PRIVATE);
+            FileOutputStream outputStream = new FileOutputStream(new File(path, keystoreFileInternal));
             keyStore.store(outputStream, password);
-            Log.d("debug","Ca cert added to keystore succesfully!!!!");
+            Log.debug("debug","Ca cert added to keystore succesfully!!!!");
             outputStream.close();
         } catch (CertificateException | NoSuchAlgorithmException | KeyStoreException | IOException e) {
             e.printStackTrace();
@@ -388,7 +382,8 @@ public class SecurityServiceImpl {
         List<String> rules = new ArrayList<>();
         FileInputStream fis;
         try {
-            fis = context.openFileInput(ACLFile);
+            File file = new File(path, ACLFile);
+            fis = new FileInputStream(file);
             InputStreamReader isr = new InputStreamReader(fis);
             BufferedReader bufferedReader = new BufferedReader(isr);
             StringBuilder sb = new StringBuilder();
@@ -415,11 +410,12 @@ public class SecurityServiceImpl {
     public void grantPermissionByCDDLTopic(String clientID, String topic_name, String permission){
         String topic = buildTopic(topic_name);
         if(topic.equals("invalid_topic")){
-            Log.d("Authorization","Invalid CDDL topic.");
+            Log.debug("Authorization","Invalid CDDL topic.");
             return;
         }
         try {
-            FileOutputStream fOut = context.openFileOutput(ACLFile,Context.MODE_APPEND);
+            File acl = new File(path,ACLFile);
+            FileOutputStream fOut = new FileOutputStream(acl, true);
 
             StringBuilder rule = new StringBuilder();
 
@@ -444,7 +440,7 @@ public class SecurityServiceImpl {
 
             fOut.write(rule.toString().getBytes());
             fOut.close();
-            Log.d("ACESS-CONTROL", "grantServiceTopicPermission: "+rule.toString());
+            Log.debug("ACESS-CONTROL", "grantServiceTopicPermission: "+rule.toString());
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -458,8 +454,8 @@ public class SecurityServiceImpl {
     public void grantPermissionByCustomTopic(String clientID, String topic, String permission){
         try {
 
-            FileOutputStream fOut = context.openFileOutput(ACLFile,Context.MODE_APPEND);
-
+            File acl = new File(path,ACLFile);
+            FileOutputStream fOut = new FileOutputStream(acl,true);
             StringBuilder rule = new StringBuilder();
             rule.append(clientID).append(" ")
                     .append(topic).append(" ")
@@ -495,7 +491,8 @@ public class SecurityServiceImpl {
 
     public void grantPermissionByServiceName(String clientID, String serviceName, String permission){
         try {
-            FileOutputStream fOut = context.openFileOutput(ACLFile,Context.MODE_APPEND);
+            File acl = new File(path,ACLFile);
+            FileOutputStream fOut = new FileOutputStream(acl, true);
             String topic = buildServiceTopic(serviceName);
 
 
@@ -542,7 +539,8 @@ public class SecurityServiceImpl {
             }
         }
         try {
-            FileOutputStream fOut = context.openFileOutput(ACLFile,Context.MODE_PRIVATE);
+            File file = new File(path, ACLFile);
+            FileOutputStream fOut = new FileOutputStream(file, true);
             fOut.write(newRules.toString().getBytes());
             fOut.close();
 
@@ -578,8 +576,8 @@ public class SecurityServiceImpl {
             }
         }
         try {
-            FileOutputStream fOut = context.openFileOutput(ACLFile,Context.MODE_PRIVATE);
-
+            File file = new File(path, ACLFile);
+            FileOutputStream fOut = new FileOutputStream(file);
             fOut.write(newRules.toString().getBytes());
             fOut.close();
 
@@ -602,8 +600,8 @@ public class SecurityServiceImpl {
             }
         }
         try {
-            FileOutputStream fOut = context.openFileOutput(ACLFile,Context.MODE_PRIVATE);
-
+            File file = new File(path, ACLFile);
+            FileOutputStream fOut = new FileOutputStream(file);
             fOut.write(newRules.toString().getBytes());
             fOut.close();
 

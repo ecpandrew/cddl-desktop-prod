@@ -1,6 +1,7 @@
 package br.ufma.lsdi.cddl.network;
 
 import br.ufma.lsdi.cddl.util.RandomIdGenerator;
+import br.ufma.lsdi.security.SecurityServiceImpl;
 import org.eclipse.paho.client.mqttv3.DisconnectedBufferOptions;
 import org.eclipse.paho.client.mqttv3.IMqttActionListener;
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
@@ -99,7 +100,7 @@ public final class ConnectionImpl implements IMqttActionListener, MqttCallback, 
 
     private String clientId;
     private String host;
-    private com.example.security_service.SecurityServiceImpl securityService;
+    private SecurityServiceImpl securityService;
 
 
     public ConnectionImpl() {
@@ -190,12 +191,13 @@ public final class ConnectionImpl implements IMqttActionListener, MqttCallback, 
         Asserts.assertNotNull(protocol, "Protocol can not be null.");
         Asserts.assertNotNull(password, "Password can not be null.");
 
-        this.securityServicePasword = pwd;
-        this.securityService = new com.example.security_service.SecurityServiceImpl(securityServicePasword);
+
 
         if (!isConnected()) {
             val uri =  protocol + "://" + host + ":" + port;
             try {
+                this.securityServicePasword = pwd;
+                this.securityService = new SecurityServiceImpl(securityServicePasword);
                 lastUri =  uri;
                 this.automaticReconnection = automaticReconnection;
                 this.automaticReconnectionTime = automaticReconnectionTime;

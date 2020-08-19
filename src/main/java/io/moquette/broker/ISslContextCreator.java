@@ -18,10 +18,12 @@ package io.moquette.broker;
 
 import io.netty.handler.ssl.SslContext;
 
+import javax.net.ssl.SSLContext;
+
 /**
  * SSL certificate loader used to open SSL connections (websocket and MQTT-S).
  */
 public interface ISslContextCreator {
 
-    SslContext initSSLContext();
+    SSLContext initSSLContext() throws Exception;
 }

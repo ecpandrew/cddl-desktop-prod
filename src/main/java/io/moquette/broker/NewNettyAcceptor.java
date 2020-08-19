@@ -45,6 +45,7 @@ import io.netty.util.concurrent.Future;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
@@ -177,16 +178,17 @@ class NewNettyAcceptor {
         } else {
             this.errorsCather = Optional.empty();
         }
-        initializePlainTCPTransport(mqttHandler, props);
-        initializeWebSocketTransport(mqttHandler, props);
         if (securityPortsConfigured(props)) {
-            SslContext sslContext = sslCtxCreator.initSSLContext();
-            if (sslContext == null) {
-                LOG.error("Can't initialize SSLHandler layer! Exiting, check your configuration of jks");
-                return;
+            try{
+                initializeSSLTCPTransport(mqttHandler, props, sslCtxCreator.initSSLContext());
+                initializeWSSTransport(mqttHandler, props, sslCtxCreator.initSSLContext());
+            }catch (Exception e){
+                System.out.println("Error on creating SSLContext, check your certificates. Message: "+e.getMessage());
             }
-            initializeSSLTCPTransport(mqttHandler, props, sslContext);
-            initializeWSSTransport(mqttHandler, props, sslContext);
+
+        }else{
+            initializePlainTCPTransport(mqttHandler, props);
+            initializeWebSocketTransport(mqttHandler, props);
         }
     }
 
@@ -305,7 +307,7 @@ class NewNettyAcceptor {
         });
     }
 
-    private void initializeSSLTCPTransport(NewNettyMQTTHandler handler, IConfig props, SslContext sslContext) {
+    private void initializeSSLTCPTransport(NewNettyMQTTHandler handler, IConfig props, SSLContext sslContext) {
         LOG.debug("Configuring SSL MQTT transport");
         String sslPortProp = props.getProperty(SSL_PORT_PROPERTY_NAME, DISABLED_PORT_BIND);
         if (DISABLED_PORT_BIND.equals(sslPortProp)) {
@@ -333,7 +335,7 @@ class NewNettyAcceptor {
         });
     }
 
-    private void initializeWSSTransport(NewNettyMQTTHandler handler, IConfig props, SslContext sslContext) {
+    private void initializeWSSTransport(NewNettyMQTTHandler handler, IConfig props, SSLContext sslContext) {
         LOG.debug("Configuring secure websocket MQTT transport");
         String sslPortProp = props.getProperty(WSS_PORT_PROPERTY_NAME, DISABLED_PORT_BIND);
         if (DISABLED_PORT_BIND.equals(sslPortProp)) {
@@ -406,11 +408,8 @@ class NewNettyAcceptor {
                  metrics.messagesWrote(), bytesMetrics.readBytes(), bytesMetrics.wroteBytes());
     }
 
-    private ChannelHandler createSslHandler(SocketChannel channel, SslContext sslContext, boolean needsClientAuth) {
-        SSLEngine sslEngine = sslContext.newEngine(
-                channel.alloc(),
-                channel.remoteAddress().getHostString(),
-                channel.remoteAddress().getPort());
+    private ChannelHandler createSslHandler(SocketChannel channel, SSLContext sslContext, boolean needsClientAuth) {
+        SSLEngine sslEngine = sslContext.createSSLEngine(channel.remoteAddress().getHostString(),channel.remoteAddress().getPort());
         sslEngine.setUseClientMode(false);
         if (needsClientAuth) {
             sslEngine.setNeedClientAuth(true);
