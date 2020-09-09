@@ -51,22 +51,22 @@ import javax.net.ssl.TrustManagerFactory;
 
 public class SecurityServiceImpl {
 
-    private static final String ALL_TOPICS = "all_topics";
-    private static final String QUERY_TOPIC = "query_topic";
-    private static final String CANCEL_QUERY_TOPIC = "cancel_query_topic";
-    private static final String QUERY_RESPONSE_TOPIC = "query_response_topic";
-    private static final String COMMAND_TOPIC = "command_topic";
-    private static final String EVENT_QUERY_TOPIC = "event_query_topic";
-    private static final String EVENT_QUERY_RESPONSE_TOPIC = "event_query_response_topic";
-    private static final String SERVICE_TOPIC = "service_topic";
-    private static final String SERVICE_INFORMATION_TOPIC = "service_information_topic";
-    private static final String LIVELINESS_TOPIC = "liveliness_topic";
-    private static final String CONNECTION_CHANGED_STATUS_TOPIC = "connection_changed_status_topic";
-    private static final String RENDEZVOUS_TOPIC = "rendezvous_topic";
-    private static final String OBJECT_FOUND_TOPIC = "object_found_topic";
-    private static final String OBJECT_CONNECTED_TOPIC = "object_connected_topic";
-    private static final String OBJECT_DISCONNECTED_TOPIC = "object_disconnected_topic";
-    private static final String OBJECT_DISCOVERED_TOPIC = "object_discovered_topic";
+    public static final String ALL_TOPICS = "all_topics";
+    public static final String QUERY_TOPIC = "query_topic";
+    public static final String CANCEL_QUERY_TOPIC = "cancel_query_topic";
+    public static final String QUERY_RESPONSE_TOPIC = "query_response_topic";
+    public static final String COMMAND_TOPIC = "command_topic";
+    public static final String EVENT_QUERY_TOPIC = "event_query_topic";
+    public static final String EVENT_QUERY_RESPONSE_TOPIC = "event_query_response_topic";
+    public static final String SERVICE_TOPIC = "service_topic";
+    public static final String SERVICE_INFORMATION_TOPIC = "service_information_topic";
+    public static final String LIVELINESS_TOPIC = "liveliness_topic";
+    public static final String CONNECTION_CHANGED_STATUS_TOPIC = "connection_changed_status_topic";
+    public static final String RENDEZVOUS_TOPIC = "rendezvous_topic";
+    public static final String OBJECT_FOUND_TOPIC = "object_found_topic";
+    public static final String OBJECT_CONNECTED_TOPIC = "object_connected_topic";
+    public static final String OBJECT_DISCONNECTED_TOPIC = "object_disconnected_topic";
+    public static final String OBJECT_DISCOVERED_TOPIC = "object_discovered_topic";
 
     private String[] premade_cddl_topics = new String[]{
             QUERY_TOPIC,CANCEL_QUERY_TOPIC,QUERY_RESPONSE_TOPIC,COMMAND_TOPIC,EVENT_QUERY_TOPIC,
